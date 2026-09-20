@@ -9,6 +9,7 @@
 | REL-1 | Исключение/timeout нормализуется | Fake LLM выбрасывает timeout или ошибку | Получен контролируемый доменный результат, исключение не выходит наружу | `test_review_converts_llm_failure_to_controlled_result` |
 | OUT-1 | Валидатор результата принимает контракт | `summary`, 0–3 корректных риска, `checks` | Результат принят без изменения обязательных полей | `test_output_accepts_valid_contract` |
 | OUT-1, QA-1 | Валидатор отбрасывает лишние и недоказанные риски | 4 риска; один без `evidence` | Не более 3 рисков, каждый содержит `file`, `line`, `evidence`, `risk` | `test_output_limits_and_requires_evidence` |
+| QA-1, OUT-1 | Валидатор принимает риск, подтверждённый конкретной строкой diff и правилом | `TRAINING_PR.diff` и правила из `CASE.md` в `practices/practice_01`; синтетический ответ: `{"summary":"Добавлен review","risks":[{"file":"app/review_service.py","line":16,"evidence":"return {\"comment\": answer}","risk":"Возвращается только comment; отсутствуют обязательные summary, risks и checks по OUT-1"}],"checks":[]}` | Ответ принят; в `risks` ровно один переданный риск с сохранёнными `file`, `line`, `evidence`, `risk` | Основание: `TRAINING_PR.diff`, новая строка `app/review_service.py:16`; `CASE.md`, QA-1 и OUT-1. Планируемый сценарий; реализация и запуск не подтверждены |
 | OBS-1 | Структурный лог не содержит payload | request_id, diff и ответ fake LLM | В записи есть request_id, длительность, статус; нет diff/ответа | `test_log_contains_metadata_only` |
 
 Планируемый запуск после реализации: `pytest -q tests/unit`.
