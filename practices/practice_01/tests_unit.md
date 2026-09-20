@@ -7,8 +7,10 @@
 | SEC-1 | Обычный код не редактируется | Diff без секретов | Результат равен входу | `test_redactor_keeps_safe_diff` |
 | REL-1 | Сервис задаёт timeout внешнему вызову | Допустимый diff и fake LLM | В адаптер передано ограничение 10 секунд | `test_review_uses_ten_second_timeout` |
 | REL-1 | Исключение/timeout нормализуется | Fake LLM выбрасывает timeout или ошибку | Получен контролируемый доменный результат, исключение не выходит наружу | `test_review_converts_llm_failure_to_controlled_result` |
+| REL-1 | Граница таймаута без реального ожидания | Допустимый diff; fake LLM не отвечает; управляемые часы будущего LLM-адаптера переходят с 9,9 до 10,0 секунды | До границы вызов ещё ожидается; на границе он завершается контролируемым результатом, без необработанного исключения | План: `test_review_times_out_at_ten_seconds_with_fake_clock`; не реализован; нужен адаптер с управляемыми часами |
 | OUT-1 | Валидатор результата принимает контракт | `summary`, 0–3 корректных риска, `checks` | Результат принят без изменения обязательных полей | `test_output_accepts_valid_contract` |
 | OUT-1, QA-1 | Валидатор отбрасывает лишние и недоказанные риски | 4 риска; один без `evidence` | Не более 3 рисков, каждый содержит `file`, `line`, `evidence`, `risk` | `test_output_limits_and_requires_evidence` |
+| QA-1 | Валидатор сверяет содержание доказательства с diff | Риск утверждает, что `app/review_service.py:15` логирует исходный diff, хотя в `TRAINING_PR.diff` на этой строке только вызов `self.llm.generate(prompt)` | Риск не включён в результат: заполненное поле `evidence` не подтверждает утверждение о логировании | План: `test_output_excludes_unproven_logging_risk`; не реализован |
 | OBS-1 | Структурный лог не содержит payload | request_id, diff и ответ fake LLM | В записи есть request_id, длительность, статус; нет diff/ответа | `test_log_contains_metadata_only` |
 
 Планируемый запуск после реализации: `pytest -q tests/unit`.
