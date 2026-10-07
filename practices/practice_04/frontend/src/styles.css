@@ -132,3 +132,20 @@ button, select { font: inherit; }
   .transfer-options { flex-wrap: wrap; gap: 10px 16px; }
   .transfer-options legend { margin-bottom: 3px; }
 }
+
+.field input, .field select {
+  width: 100%; height: 38px; padding: 0 10px; border: 1px solid #a9a9a9;
+  background: #fff; color: #222; font: inherit;
+}
+.field input:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+.options-row { display: flex; gap: 12px; margin-top: 16px; }
+.checks { display: flex; justify-content: center; gap: 24px; margin: 22px 0; font-size: 13px; }
+.checks label { display: flex; align-items: center; gap: 5px; }
+.flight { padding: 12px 0; align-items: flex-start; }
+.flight-details { line-height: 1.6; }
+.flight strong { white-space: nowrap; }
+@media (max-width: 650px) {
+  .options-row { flex-direction: column; }
+  .flight { flex-direction: column; }
+  .flight strong { margin-left: 0; }
+}
