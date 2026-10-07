@@ -78,7 +78,7 @@ async def search_fares(
     async with _cache_lock:
         cached = _cache.get(cache_key)
         if cached and cached[0] > now:
-            return cached[1].model_copy(deep=True)
+            return cached[1].model_copy(update={"cache_hit": True}, deep=True)
 
     for attempt in range(3):
         try:

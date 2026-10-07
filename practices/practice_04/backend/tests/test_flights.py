@@ -7,11 +7,17 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main_module
+import app.history as history_module
 from app.ignav import _cache
 from app.main import app, get_api_key, get_http_client
 
 DATE = "2099-11-10"
 BASE = {"origin": "MOW", "destination": "LED", "departure_date": DATE}
+
+
+@pytest.fixture(autouse=True)
+def isolated_history(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    monkeypatch.setattr(history_module, "DATABASE_PATH", tmp_path / "history.sqlite3")
 
 
 @contextmanager
@@ -184,3 +190,106 @@ def test_unsupported_search_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> N
         response = client.post("/api/fares/one-way", json=BASE)
     assert response.status_code == 422
     assert calls == 1
+
+
+def test_price_history_comparison_and_filter_isolation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IGNAV_API_KEY", "test-key")
+    prices = iter([4000, 3500, 2500])
+
+    def upstream(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"itineraries": [itinerary(next(prices))]})
+
+    with client_with_upstream(upstream) as client:
+        first = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+        _cache.clear()
+        second = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+        _cache.clear()
+        different_filter = client.post("/api/fares/one-way", json={**BASE, "max_price": 5000}).json()["comparison"]
+    assert first["status"] == "no_previous_price"
+    assert second["status"] == "compared"
+    assert second["previous_price"] == 4000
+    assert second["current_price"] == 3500
+    assert second["difference"] == -500
+    assert second["percent_difference"] == -12.5
+    assert different_filter["status"] == "no_previous_price"
+
+
+def test_empty_search_is_saved_but_not_used_as_price(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IGNAV_API_KEY", "test-key")
+    responses = iter([[itinerary(4000)], [], [itinerary(3500)]])
+
+    def upstream(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"itineraries": next(responses)})
+
+    with client_with_upstream(upstream) as client:
+        client.post("/api/fares/one-way", json=BASE)
+        _cache.clear()
+        empty = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+        _cache.clear()
+        after_empty = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+    assert empty["status"] == "no_current_price"
+    assert after_empty["previous_price"] == 4000
+    assert after_empty["difference"] == -500
+    with history_module.sqlite3.connect(history_module.DATABASE_PATH) as connection:
+        rows = connection.execute("SELECT min_price FROM fare_searches ORDER BY id").fetchall()
+    assert rows == [("4000.0",), (None,), ("3500.0",)]
+
+
+def test_currency_mismatch_is_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IGNAV_API_KEY", "test-key")
+    currencies = iter(["RUB", "USD"])
+
+    def upstream(_: httpx.Request) -> httpx.Response:
+        fare = itinerary(4000)
+        fare["price"]["currency"] = next(currencies)
+        return httpx.Response(200, json={"itineraries": [fare]})
+
+    with client_with_upstream(upstream) as client:
+        client.post("/api/fares/one-way", json=BASE)
+        _cache.clear()
+        comparison = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+    assert comparison["status"] == "currency_mismatch"
+    assert comparison["difference"] is None
+
+
+def test_cached_search_still_creates_history_record(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IGNAV_API_KEY", "test-key")
+    calls = 0
+
+    def upstream(_: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"itineraries": [itinerary(4000)]})
+
+    with client_with_upstream(upstream) as client:
+        client.post("/api/fares/one-way", json=BASE)
+        second = client.post("/api/fares/one-way", json=BASE).json()
+    assert calls == 1
+    assert second["cache_hit"] is True
+    assert second["comparison"]["status"] == "compared"
+    assert second["comparison"]["difference"] == 0
+
+
+def test_first_empty_search_does_not_become_comparison_price(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IGNAV_API_KEY", "test-key")
+    responses = iter([[], [itinerary(3500)]])
+
+    with client_with_upstream(lambda _: httpx.Response(200, json={"itineraries": next(responses)})) as client:
+        empty = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+        _cache.clear()
+        next_search = client.post("/api/fares/one-way", json=BASE).json()["comparison"]
+    assert empty["status"] == "no_current_price"
+    assert next_search["status"] == "no_previous_price"
+
+
+def test_mixed_currencies_fail_without_saving(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IGNAV_API_KEY", "test-key")
+    rub = itinerary(4000)
+    usd = itinerary(100)
+    usd["price"]["currency"] = "USD"
+
+    with client_with_upstream(lambda _: httpx.Response(200, json={"itineraries": [rub, usd]})) as client:
+        response = client.post("/api/fares/one-way", json=BASE)
+    assert response.status_code == 502
+    assert "разных валютах" in response.json()["detail"]
+    assert not history_module.DATABASE_PATH.exists()

@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ignav import search_fares
+from .history import add_history
 from .schemas import FareSearch, FareSearchResponse, HealthResponse, RoundTripSearch
 
 ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
@@ -57,7 +58,8 @@ async def one_way(
     client: Annotated[httpx.AsyncClient, Depends(get_http_client)],
     api_key: Annotated[str, Depends(get_api_key)],
 ) -> FareSearchResponse:
-    return await search_fares(search, client, api_key)
+    result = await search_fares(search, client, api_key)
+    return await add_history(search, result)
 
 
 @app.post("/api/fares/round-trip", response_model=FareSearchResponse)
@@ -66,4 +68,5 @@ async def round_trip(
     client: Annotated[httpx.AsyncClient, Depends(get_http_client)],
     api_key: Annotated[str, Depends(get_api_key)],
 ) -> FareSearchResponse:
-    return await search_fares(search, client, api_key)
+    result = await search_fares(search, client, api_key)
+    return await add_history(search, result)

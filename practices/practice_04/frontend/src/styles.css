@@ -149,3 +149,10 @@ button, select { font: inherit; }
   .flight { flex-direction: column; }
   .flight strong { margin-left: 0; }
 }
+
+.comparison {
+  display: grid; gap: 5px; margin: 12px 0 18px; padding: 12px 14px;
+  border: 1px solid #d7e3fa; background: #f5f8ff; font-size: 13px;
+}
+.comparison strong { font-size: 14px; }
+.comparison small { color: #666; }

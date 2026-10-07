@@ -1,6 +1,6 @@
 from datetime import date
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
@@ -86,10 +86,23 @@ class Itinerary(BaseModel):
     requires_self_transfer: bool = False
 
 
+class PriceComparison(BaseModel):
+    status: Literal["compared", "no_previous_price", "no_current_price", "currency_mismatch"]
+    previous_price: float | None = None
+    current_price: float | None = None
+    previous_currency: str | None = None
+    current_currency: str | None = None
+    difference: float | None = None
+    percent_difference: float | None = None
+    previous_search_at: str | None = None
+    current_search_at: str
+
+
 class FareSearchResponse(BaseModel):
     itineraries: list[Itinerary]
     observed_at: str | None = None
     cache_hit: bool = False
+    comparison: PriceComparison | None = None
 
 
 class HealthResponse(BaseModel):

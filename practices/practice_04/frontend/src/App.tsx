@@ -16,7 +16,34 @@ type Itinerary = {
   inbound: Leg | null
   requires_self_transfer: boolean
 }
-type SearchResult = { itineraries: Itinerary[]; observed_at: string | null }
+type PriceComparison = {
+  status: 'compared' | 'no_previous_price' | 'no_current_price' | 'currency_mismatch'
+  previous_price: number | null
+  current_price: number | null
+  previous_currency: string | null
+  current_currency: string | null
+  difference: number | null
+  percent_difference: number | null
+  previous_search_at: string | null
+  current_search_at: string
+}
+type SearchResult = { itineraries: Itinerary[]; observed_at: string | null; cache_hit: boolean; comparison: PriceComparison }
+
+function money(amount: number, currency: string) {
+  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency }).format(amount)
+}
+
+function comparisonText(comparison: PriceComparison) {
+  if (comparison.status === 'no_current_price') return 'В этом поиске билетов нет, поэтому сравнить цены нельзя.'
+  if (comparison.status === 'no_previous_price') return 'Это первый поиск с такими параметрами. Пока не с чем сравнивать.'
+  if (comparison.status === 'currency_mismatch') return 'Валюта результата отличается от предыдущего поиска. Сравнение цен невозможно.'
+  const difference = comparison.difference ?? 0
+  if (difference === 0) return 'Минимальная цена не изменилась с прошлого поиска.'
+  const direction = difference < 0 ? 'Дешевле' : 'Дороже'
+  const change = money(Math.abs(difference), comparison.current_currency ?? 'RUB')
+  const percent = comparison.percent_difference === null ? '' : ` (${Math.abs(comparison.percent_difference).toFixed(1)}%)`
+  return `${direction} на ${change}${percent} по сравнению с предыдущим поиском.`
+}
 
 function legText(leg: Leg) {
   const first = leg.segments[0]
@@ -109,9 +136,15 @@ function App() {
         {result && <section className="results" aria-label="Результаты поиска">
           <h1>{searchedRoute}</h1>
           <p className="results-note">Цены ориентировочные; наличие и итоговую стоимость нужно проверить у продавца.</p>
+          {result.comparison && <div className="comparison" aria-label="Сравнение цен">
+            <strong>{comparisonText(result.comparison)}</strong>
+            {result.comparison.current_price !== null && result.comparison.current_currency && <span>Сейчас: {money(result.comparison.current_price, result.comparison.current_currency)}</span>}
+            {result.comparison.previous_price !== null && result.comparison.previous_currency && <span>Прошлый поиск: {money(result.comparison.previous_price, result.comparison.previous_currency)}</span>}
+            {result.cache_hit && <small>Тарифы получены из кеша и могут не отражать новое изменение цены.</small>}
+          </div>}
           {result.itineraries.length === 0 ? <p>По вашему запросу билеты не найдены. Попробуйте другие даты или фильтры.</p> : <div className="flights">{result.itineraries.map(itinerary => <article className="flight" key={itinerary.ignav_id}>
             <div className="flight-details"><div>Туда: {legText(itinerary.outbound)}</div>{itinerary.inbound && <div>Обратно: {legText(itinerary.inbound)}</div>}{itinerary.requires_self_transfer && <div>Может потребоваться самостоятельная пересадка</div>}</div>
-            <strong>от {new Intl.NumberFormat('ru-RU', { style: 'currency', currency: itinerary.price.currency }).format(itinerary.price.amount)}</strong>
+            <strong>от {money(itinerary.price.amount, itinerary.price.currency)}</strong>
           </article>)}</div>}
         </section>}
       </main>
