@@ -12,7 +12,21 @@ Mocked Ignav; isolated temporary SQLite; no live fare request.
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-26 passed, 1 warning in 0.94s
+26 passed, 1 warning in 0.95s
+```
+
+## After-edit hook tests: PASS
+
+```text
+✔ after-edit returns failure to agent, supports before args and patches, skips reports (184.160333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 274.363708
 ```
 
 ## Frontend build: PASS
@@ -29,7 +43,7 @@ computing gzip size...
 dist/index.html                   0.50 kB │ gzip:  0.35 kB
 dist/assets/index-BFmJpsHr.css    4.13 kB │ gzip:  1.44 kB
 dist/assets/index-D6Fohf3v.js   231.86 kB │ gzip: 72.28 kB
-✓ built in 299ms
+✓ built in 326ms
 ```
 
 ## Offline A/B scenario: PASS
