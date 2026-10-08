@@ -173,3 +173,7 @@ student_solutions/
 !.roo/
 !.specify/
 !.vscode/
+
+# Локальная история поиска practice_04 (SQLite и служебные файлы)
+practices/practice_04/backend/price_history.sqlite3*
+practices/practice_04/frontend/.vite/
