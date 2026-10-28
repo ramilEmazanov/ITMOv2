@@ -178,3 +178,5 @@ student_solutions/
 practices/practice_04/backend/price_history.sqlite3
 practices/practice_04/backend/price_history.sqlite3-shm
 practices/practice_04/backend/price_history.sqlite3-wal
+
+/.agents/skills/
