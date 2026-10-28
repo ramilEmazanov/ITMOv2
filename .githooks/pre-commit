@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+# Run the frontend check only when frontend files are part of this commit.
+if git diff --cached --quiet -- practices/practice_04/frontend; then
+  exit 0
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-commit: npm is required to check the practice_04 frontend." >&2
+  exit 1
+fi
+
+if [ ! -d practices/practice_04/frontend/node_modules ]; then
+  echo "pre-commit: run 'npm install' in practices/practice_04/frontend first." >&2
+  exit 1
+fi
+
+echo "pre-commit: checking practice_04 frontend..."
+cd practices/practice_04/frontend
+npm run build
