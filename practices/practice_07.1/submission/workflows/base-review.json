@@ -1,0 +1,629 @@
+{
+  "name": "Emil Ramazanov Base Review",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://api.github.com/repos/{{ $json.repository }}/pulls/{{ $json.pr_number }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3.diff"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "6d69de98-fb2a-4073-9698-00e8ac27b018",
+      "name": "Get file's PR info",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        64,
+        -48
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "3BbptvqqHiVtJMg5",
+          "name": "GitHub Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "owner": {
+          "__rl": true,
+          "value": "ramilEmazanov",
+          "mode": "list",
+          "cachedResultName": "ramilEmazanov",
+          "cachedResultUrl": "https://github.com/ramilEmazanov"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "RouteFinder",
+          "mode": "list",
+          "cachedResultName": "RouteFinder",
+          "cachedResultUrl": "https://github.com/ramilEmazanov/RouteFinder"
+        },
+        "events": [
+          "pull_request",
+          "issue_comment"
+        ],
+        "options": {}
+      },
+      "id": "6c466543-f553-447e-9da6-680f772e2806",
+      "name": "PR Trigger1",
+      "type": "n8n-nodes-base.githubTrigger",
+      "position": [
+        -560,
+        -64
+      ],
+      "webhookId": "c6a30e53-bda5-4922-87f3-8cdfb399a35f",
+      "notesInFlow": false,
+      "typeVersion": 1,
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "review",
+        "owner": {
+          "__rl": true,
+          "value": "ramilEmazanov",
+          "mode": "list",
+          "cachedResultName": "ramilEmazanov",
+          "cachedResultUrl": "https://github.com/ramilEmazanov"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "RouteFinder",
+          "mode": "list",
+          "cachedResultName": "RouteFinder",
+          "cachedResultUrl": "https://github.com/ramilEmazanov/RouteFinder"
+        },
+        "pullRequestNumber": "={{ $('Prepare PR').first().json.pr_number }}",
+        "event": "comment",
+        "body": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "id": "51854266-560e-4898-87f6-3b4e27790885",
+      "name": "GitHub Robot1",
+      "type": "n8n-nodes-base.github",
+      "position": [
+        992,
+        224
+      ],
+      "webhookId": "4392c85d-31e9-4ebd-8f4d-d556cbb8f3e0",
+      "typeVersion": 1.1,
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "edit",
+        "owner": {
+          "__rl": true,
+          "value": "ramilEmazanov",
+          "mode": "list",
+          "cachedResultName": "ramilEmazanov",
+          "cachedResultUrl": "https://github.com/ramilEmazanov"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "RouteFinder",
+          "mode": "list",
+          "cachedResultName": "RouteFinder",
+          "cachedResultUrl": "https://github.com/ramilEmazanov/RouteFinder"
+        },
+        "issueNumber": "={{ $('Prepare PR').first().json.pr_number }}",
+        "editFields": {
+          "labels": [
+            {
+              "label": "ReviewedByAI"
+            }
+          ]
+        }
+      },
+      "id": "dd33fc55-5281-42df-b13c-88753b731caf",
+      "name": "Add Label to PR1",
+      "type": "n8n-nodes-base.github",
+      "position": [
+        1456,
+        224
+      ],
+      "webhookId": "70d2db56-965b-4f1f-817c-1fbb311320c0",
+      "typeVersion": 1,
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-6-luna",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "edb05d04-ee84-4330-ab01-e0e75fc0fb31",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        624,
+        400
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "BkXEHgN3Fa7ghhum",
+          "name": "OpenAI account 49"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "7f68feb5-d865-4c71-8aa1-39f317c2d1dd",
+              "leftValue": "={{\n  (\n    $json.body.action === 'opened'\n    && !!$json.body.pull_request\n  )\n  ||\n  (\n    $json.body.action === 'created'\n    && !!$json.body.issue?.pull_request\n    && ['/make_ai_review', '/make_other_ai_review']\n      .includes(($json.body.comment?.body ?? '').trim())\n  )\n}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -352,
+        192
+      ],
+      "id": "80aebb46-6f42-4566-8b8c-5816e3d279fd",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ca5206d4-cf21-4f64-af97-00b1a7e32c8c",
+              "name": "pr_id",
+              "value": "={{ $json.body.pull_request?.url ?? $json.body.issue?.pull_request?.url }}",
+              "type": "string"
+            },
+            {
+              "id": "a1f71ef5-6931-488b-8cae-fe93ff979443",
+              "name": "repository",
+              "value": "={{ $json.body.repository.full_name }}",
+              "type": "string"
+            },
+            {
+              "id": "80e04421-246c-4c7c-91f8-7db7101d53e1",
+              "name": "pr_number",
+              "value": "={{ $json.body.number ?? $json.body.issue?.number }}",
+              "type": "number"
+            },
+            {
+              "id": "520065f9-f347-48b4-b3a0-547332023620",
+              "name": "review_type",
+              "value": "={{ ($json.body.comment?.body ?? '').trim() === '/make_other_ai_review' ? 'other' : 'main' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -160,
+        -48
+      ],
+      "id": "177c3925-20f7-4fb7-b470-6c4641abfd7a",
+      "name": "Prepare PR"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "e4f0271a-7176-4a8b-a824-37f8814464b3",
+              "leftValue": "={{ $('Prepare PR').first().json.review_type === 'other' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        256,
+        -48
+      ],
+      "id": "0f2d1c28-7d1f-48ec-be31-fc7f80bb3261",
+      "name": "Other Model?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a senior Python developer.\n\nСделай code review ТОЛЬКО изменённых строк в diff.\nНайди:\n\t•\tбаги\n\t•\tпроблемы безопасности\n\t•\tрегрессии\n\t•\tпроблемы производительности\n\t•\tнарушения best practices\n\nДай конкретные рекомендации и примеры исправлений.\n\n{{ $json.data }}",
+        "options": {
+          "systemMessage": ""
+        }
+      },
+      "id": "ac228d39-5335-4f30-b595-73079725799b",
+      "name": "Other Review Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        624,
+        -96
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "value": "iHOVcB0ApjPmal1F",
+          "mode": "list",
+          "cachedResultName": "reviewed_prs",
+          "cachedResultUrl": "/projects/z7S2MY6Q6PQGBMLG/datatables/iHOVcB0ApjPmal1F"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pr_id",
+              "keyValue": "={{ $('Prepare PR').first().json.pr_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        208
+      ],
+      "id": "ef326ee1-9fce-4a86-ad9c-c2f853d7f7c8",
+      "name": "Skip reviewed PR"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a senior Python developer.\n\nСделай code review ТОЛЬКО изменённых строк в diff.\nНайди:\n\t•\tбаги\n\t•\tпроблемы безопасности\n\t•\tрегрессии\n\t•\tпроблемы производительности\n\t•\tнарушения best practices\n\nДай конкретные рекомендации и примеры исправлений.\n\n{{ $json.data }}",
+        "options": {
+          "systemMessage": ""
+        }
+      },
+      "id": "a4b73838-20d7-46b7-8300-ffe155450dbf",
+      "name": "Main Review Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        624,
+        224
+      ],
+      "typeVersion": 1.9
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "iHOVcB0ApjPmal1F",
+          "mode": "list",
+          "cachedResultName": "reviewed_prs",
+          "cachedResultUrl": "/projects/z7S2MY6Q6PQGBMLG/datatables/iHOVcB0ApjPmal1F"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "pr_id",
+              "keyValue": "={{ $('Prepare PR').first().json.pr_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pr_id": "={{ $('Prepare PR').first().json.pr_id }}",
+            "repository": "={{ $('Prepare PR').first().json.repository }}",
+            "pr_number": "={{ $('Prepare PR').first().json.pr_number }}",
+            "review_type": "={{ $('Prepare PR').first().json.review_type }}",
+            "reviewed_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "pr_id",
+              "displayName": "pr_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "repository",
+              "displayName": "repository",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "pr_number",
+              "displayName": "pr_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "review_type",
+              "displayName": "review_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reviewed_at",
+              "displayName": "reviewed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1232,
+        224
+      ],
+      "id": "47320b52-6731-42a5-94fa-c07e80eaa0ca",
+      "name": "Save Reviewed PR"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "deepseek-v4.1-flash",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "e160975e-9871-46b8-88a5-7f15c8c2220c",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        624,
+        96
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "BkXEHgN3Fa7ghhum",
+          "name": "OpenAI account 49"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get file's PR info": {
+      "main": [
+        [
+          {
+            "node": "Other Model?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PR Trigger1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub Robot1": {
+      "main": [
+        [
+          {
+            "node": "Save Reviewed PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Main Review Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Prepare PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PR": {
+      "main": [
+        [
+          {
+            "node": "Get file's PR info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Other Model?": {
+      "main": [
+        [
+          {
+            "node": "Other Review Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip reviewed PR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip reviewed PR": {
+      "main": [
+        [
+          {
+            "node": "Main Review Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Main Review Agent": {
+      "main": [
+        [
+          {
+            "node": "GitHub Robot1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Other Review Agent": {
+      "main": [
+        [
+          {
+            "node": "GitHub Robot1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Reviewed PR": {
+      "main": [
+        [
+          {
+            "node": "Add Label to PR1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Other Review Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "df32ca48-09aa-4552-93be-bf647ad25a26",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "68dbbb4e8fa686c3fd4e9982ade6836edb66976f207553e7ac22df961581c78c"
+  },
+  "nodeGroups": [],
+  "id": "XJqhh5Z52GvO2QUO",
+  "tags": []
+}
