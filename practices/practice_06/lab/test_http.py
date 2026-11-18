@@ -38,6 +38,15 @@ class HttpTest(unittest.TestCase):
         with response:
             return response.status, response.headers, response.read().decode()
 
+    def call_raw(self, method, path, data, headers=None):
+        request = Request(self.base + path, data=data, headers=headers or {}, method=method)
+        try:
+            response = urlopen(request, timeout=5)
+        except HTTPError as exc:
+            response = exc
+        with response:
+            return response.status, response.headers, response.read().decode()
+
     def test_login_and_purchase_over_http(self):
         status, _, body = self.call("POST", "/login", {"username": "alice", "password": "learn-alice"})
         self.assertEqual(status, 200)
@@ -54,6 +63,25 @@ class HttpTest(unittest.TestCase):
 
     def test_transport_only_binds_loopback(self):
         self.assertEqual(self.server.server_address[0], "127.0.0.1")
+
+    def test_invalid_json_gets_safe_client_error(self):
+        status, _, body = self.call_raw(
+            "POST", "/login", b"{not-json", {"Content-Type": "application/json"}
+        )
+        self.assertEqual(status, 400)
+        self.assertEqual(json.loads(body), {"error": "invalid request"})
+        self.assertNotIn("JSONDecodeError", body)
+
+    def test_review_html_has_browser_defenses(self):
+        status, _, body = self.call("POST", "/login", {"username": "alice", "password": "learn-alice"})
+        self.assertEqual(status, 200)
+        auth = {"X-Token": json.loads(body)["token"]}
+        self.call("POST", "/reviews", {"product": "chair", "text": "<script>alert(1)</script>"}, auth)
+        status, headers, body = self.call("GET", "/reviews/view", headers=auth)
+        self.assertEqual(status, 200)
+        self.assertIn("default-src 'none'", headers["Content-Security-Policy"])
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        self.assertNotIn("<script>", body)
 
 
 if __name__ == "__main__":
