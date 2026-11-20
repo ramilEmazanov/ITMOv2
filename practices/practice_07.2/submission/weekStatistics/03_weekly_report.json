@@ -1,0 +1,876 @@
+{
+  "name": "03_weekly_report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "=0 9 * * MON"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "76d5c03b-4105-464e-b26f-61db8415cc76",
+      "name": "Weekly Schedule"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "id": "e0f3b3ac-5111-4b29-b8d3-7f137336488a",
+      "name": "Run Report Manually"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9231404a-381b-4fd9-9f29-a76e60234a34",
+              "name": "to_email",
+              "value": "emil.ramazanovvv@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "955ba633-b7c8-462a-8213-64a7e96b75a9",
+              "name": "test_week_start",
+              "value": "2026-11-16",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        304,
+        80
+      ],
+      "id": "b259962c-708e-4eaf-b558-7d13883de451",
+      "name": "Report Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items.\n// Расчёт календарных недель для Europe/Moscow (UTC+03:00).\nconst cfg = $input.first().json;\nconst repo = 'ramilEmazanov/RouteFinder';\nconst timezone = 'Europe/Moscow';\nconst dayMs = 24 * 60 * 60 * 1000;\nconst now = new Date();\nconst parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {\n  timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',\n}).formatToParts(now).map(p => [p.type, p.value]));\nconst today = `${parts.year}-${parts.month}-${parts.day}`;\nconst localMidnight = new Date(`${today}T00:00:00+03:00`);\nconst weekday = new Date(`${today}T00:00:00Z`).getUTCDay();\nconst thisMonday = new Date(localMidnight.getTime() - ((weekday + 6) % 7) * dayMs);\nconst override = String(cfg.test_week_start ?? '').trim();\nlet start = new Date(thisMonday.getTime() - 7 * dayMs);\nif (override) {\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(override)) throw new Error('Use YYYY-MM-DD');\n  start = new Date(`${override}T00:00:00+03:00`);\n  const check = new Date(`${override}T00:00:00Z`);\n  if (!Number.isFinite(start.getTime()) || check.toISOString().slice(0, 10) !== override\n      || check.getUTCDay() !== 1) throw new Error('test_week_start must be a valid Monday');\n  if (start > now) throw new Error('Test week cannot start in the future');\n}\nconst end = new Date(start.getTime() + 7 * dayMs);\nconst localDate = value => new Date(value.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);\nconst weekStart = localDate(start);\nconst prevStart = localDate(new Date(start.getTime() - 7 * dayMs));\nconst secIso = value => value.toISOString().replace('.000Z', 'Z');\nreturn [{ json: {\n  repo, timezone,\n  to_email: String(cfg.to_email ?? '').trim(),\n  week_start: weekStart,\n  week_end: localDate(end),\n  last_day: localDate(new Date(end.getTime() - dayMs)),\n  start_iso: secIso(start),\n  end_iso: secIso(end),\n  search_range: `${secIso(start)}..${secIso(new Date(end.getTime() - 1000))}`,\n  week_key: `${repo}|${weekStart}`,\n  previous_week_key: `${repo}|${prevStart}`,\n  previous_week_start: prevStart,\n  is_test: Boolean(override),\n  is_partial: end > now,\n  definition: 'Issues created in [start,end), open and closed, one classification label',\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        80
+      ],
+      "id": "31d3cc0b-fa13-4d94-901c-21eba674bbfd",
+      "name": "Prepare Period"
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/search/issues",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ 'repo:ramilEmazanov/RouteFinder is:issue label:bug created:' + $('Prepare Period').first().json.search_range }}"
+            },
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "sort",
+              "value": "created"
+            },
+            {
+              "name": "order",
+              "value": "asc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.items.length < 100 || ($pageCount + 1) * 100 >= $response.body.total_count }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        80
+      ],
+      "id": "e675885d-8d30-4744-80e7-57fdfb6e1de9",
+      "name": "Fetch Bug",
+      "executeOnce": true,
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/search/issues",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ 'repo:ramilEmazanov/RouteFinder is:issue label:task created:' + $('Prepare Period').first().json.search_range }}"
+            },
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "sort",
+              "value": "created"
+            },
+            {
+              "name": "order",
+              "value": "asc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.items.length < 100 || ($pageCount + 1) * 100 >= $response.body.total_count }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        816,
+        80
+      ],
+      "id": "fe5d23d3-2fa8-4ac0-995a-5020ef3759e8",
+      "name": "Fetch Task",
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/search/issues",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ 'repo:ramilEmazanov/RouteFinder is:issue label:feature created:' + $('Prepare Period').first().json.search_range }}"
+            },
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "sort",
+              "value": "created"
+            },
+            {
+              "name": "order",
+              "value": "asc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1}}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.items.length < 100 || ($pageCount + 1) * 100 >= $response.body.total_count }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        960,
+        80
+      ],
+      "id": "9aaed6fe-be9d-475c-b620-39df054951c4",
+      "name": "Fetch Feature",
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/search/issues",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ 'repo:ramilEmazanov/RouteFinder is:issue label:needs-triage created:' + $('Prepare Period').first().json.search_range }}"
+            },
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "sort",
+              "value": "created"
+            },
+            {
+              "name": "order",
+              "value": "asc"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.items.length < 100 || ($pageCount + 1) * 100 >= $response.body.total_count }}",
+              "limitPagesFetched": true,
+              "maxRequests": 10
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1088,
+        80
+      ],
+      "id": "4089f210-a755-4567-a03d-fb037f8f7dcf",
+      "name": "Fetch Triage",
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items. Имена HTTP-нод должны совпадать.\nconst p = $('Prepare Period').first().json;\nconst labels = ['bug', 'task', 'feature', 'needs-triage'];\nconst sources = ['Fetch Bug', 'Fetch Task', 'Fetch Feature', 'Fetch Triage'];\nconst issues = new Map();\nfor (const source of sources) {\n  const pages = $(source).all().map(item => item.json);\n  if (!pages.length) throw new Error(`${source}: no API response`);\n  const sourceIds = new Set();\n  let expected = 0;\n  for (const page of pages) {\n    if (!Array.isArray(page.items) || !Number.isInteger(page.total_count)\n        || page.total_count < 0) throw new Error(`${source}: unexpected response`);\n    if (page.incomplete_results !== false) throw new Error(`${source}: incomplete search`);\n    expected = Math.max(expected, page.total_count);\n    if (expected > 1000) throw new Error(`${source}: narrow the interval, GitHub search limit is 1000`);\n    for (const issue of page.items) {\n      sourceIds.add(issue.id);\n      if (issue.pull_request) continue;\n      const date = Date.parse(issue.created_at);\n      if (!Number.isFinite(date)) throw new Error('Invalid issue created_at');\n      if (date < Date.parse(p.start_iso) || date >= Date.parse(p.end_iso)) continue;\n      const assigned = (issue.labels ?? []).map(l => typeof l === 'string' ? l : l.name)\n        .filter(l => labels.includes(l));\n      if (assigned.length !== 1) throw new Error(`Issue #${issue.number}: expected exactly one classification label`);\n      issues.set(issue.id, {\n        id: issue.id, number: issue.number, type: assigned[0],\n        author: issue.user?.login ?? '(deleted)', url: issue.html_url,\n      });\n    }\n  }\n  if (sourceIds.size < expected) throw new Error(`${source}: missing pages or changing search results`);\n}\nconst emptyCounts = () => Object.fromEntries(labels.map(k => [k, 0]));\nconst byType = emptyCounts();\nconst authors = new Map();\nfor (const issue of issues.values()) {\n  byType[issue.type]++;\n  if (!authors.has(issue.author)) authors.set(issue.author, { author: issue.author, total: 0, ...emptyCounts() });\n  const row = authors.get(issue.author);\n  row.total++;\n  row[issue.type]++;\n}\nreturn [{ json: {\n  ...p, schema_version: 1,\n  total: issues.size, by_type: byType,\n  by_author: [...authors.values()].sort((a,b) => b.total - a.total || a.author.localeCompare(b.author)),\n  generated_at: new Date().toISOString(),\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        80
+      ],
+      "id": "8aa54756-5fe1-40a6-b466-fb9452c00d87",
+      "name": "Aggregate Stats"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items. Письмо обычным текстом.\nconst r = $input.first().json;\nconst labels = ['bug', 'task', 'feature', 'needs-triage'];\nconst hasComparison = r.has_previous === true;\nconst formatDelta = value => value > 0 ? `+${value}` : String(value);\nconst metric = (name, current, previous, difference) => hasComparison\n  ? `${name}: ${current} (прошлая неделя: ${previous}, Δ ${formatDelta(difference)})`\n  : `${name}: ${current}`;\n\nconst lines = [\n  'Недельный отчёт RouteFinder',\n  `${r.week_start} — ${r.last_day}, ${r.timezone}`,\n  '',\n  'Классифицированные Issues, созданные за период. Учтены открытые и закрытые обращения.',\n  '',\n  metric('Всего', r.total, r.previous?.total, r.delta?.total),\n  '',\n  'По типам:',\n  ...labels.map(label => metric(\n    label, r.by_type[label], r.previous?.by_type?.[label], r.delta?.by_type?.[label],\n  )),\n];\n\nif (r.has_previous === false) {\n  lines.push('', 'Нет данных предыдущей недели для сравнения.');\n}\n\nlines.push('', 'По авторам:');\nif (r.by_author.length) {\n  for (const author of r.by_author) {\n    lines.push(`${author.author}: всего ${author.total}; ${labels.map(label => `${label}: ${author[label]}`).join(', ')}`);\n  }\n} else {\n  lines.push('За неделю обращений нет.');\n}\n\nif (r.ai_comment) {\n  lines.push('', 'AI-комментарий недели:', String(r.ai_comment).trim());\n}\nlines.push('', 'Issues репозитория: https://github.com/ramilEmazanov/RouteFinder/issues');\n\nreturn [{ json: {\n  ...r,\n  subject: `${r.is_test ? '[ТЕСТ] ' : ''}RouteFinder: Issues за ${r.week_start} — ${r.last_day}`,\n  text: lines.join('\\n'),\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3024,
+        80
+      ],
+      "id": "304e6868-875f-4cd8-877f-b530ecd3b368",
+      "name": "Build Email"
+    },
+    {
+      "parameters": {
+        "fromEmail": "t0moe6172@gmail.com",
+        "toEmail": "={{ $json.to_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        3232,
+        80
+      ],
+      "id": "a85d750e-2749-455c-8b0d-522f78135311",
+      "name": "Send Weekly Report",
+      "webhookId": "22c12708-6c90-4085-9368-7646cead24d1",
+      "credentials": {
+        "smtp": {
+          "id": "uK6PmhWH8uRIKfbM",
+          "name": "SMTP account 20"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SE3L4ZwcGrgVK2UA",
+          "mode": "list",
+          "cachedResultName": "weekly_stats",
+          "cachedResultUrl": "/projects/z7S2MY6Q6PQGBMLG/datatables/SE3L4ZwcGrgVK2UA"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "week_key",
+              "keyValue": "={{ $json.previous_week_key }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1408,
+        80
+      ],
+      "id": "d7734e10-8685-4235-8327-36c45c523768",
+      "name": "Get Previous Week",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items. Вход от Get Previous Week (Always Output Data).\nconst current = $('Aggregate Stats').first().json;\nconst rows = $input.all().map(i => i.json).filter(row => row.week_key === current.previous_week_key);\nif (rows.length > 1) throw new Error('Duplicate previous-week rows in Data Table');\nif (!rows.length) return [{ json: { ...current, has_previous: false, previous: null, delta: null } }];\nconst previous = JSON.parse(rows[0].snapshot_json);\nif (previous.schema_version !== current.schema_version\n    || previous.week_key !== current.previous_week_key\n    || previous.repo !== current.repo\n    || previous.timezone !== current.timezone\n    || previous.definition !== current.definition\n    || previous.is_partial) throw new Error('Previous snapshot is incompatible or incomplete');\nconst labels = ['bug', 'task', 'feature', 'needs-triage'];\nif (!Number.isInteger(previous.total) || previous.total < 0\n    || labels.some(k => !Number.isInteger(previous.by_type?.[k]) || previous.by_type[k] < 0)\n    || labels.reduce((s,k) => s + previous.by_type[k], 0) !== previous.total\n    || !Array.isArray(previous.by_author)\n    || previous.by_author.some(row => !Number.isInteger(row.total) || row.total < 0)\n    || previous.by_author.reduce((s,row) => s + row.total, 0) !== previous.total) {\n  throw new Error('Invalid previous snapshot counts');\n}\nconst byType = Object.fromEntries(labels.map(k => [k, current.by_type[k] - previous.by_type[k]]));\nconst oldAuthors = new Map(previous.by_author.map(row => [row.author, row.total]));\nconst newAuthors = new Map(current.by_author.map(row => [row.author, row.total]));\nconst byAuthor = [...new Set([...oldAuthors.keys(), ...newAuthors.keys()])].sort().map(author => ({\n  author, delta: (newAuthors.get(author) ?? 0) - (oldAuthors.get(author) ?? 0),\n}));\nreturn [{ json: {\n  ...current, has_previous: true, previous,\n  previous_is_test: previous.is_test === true,\n  delta: { total: current.total - previous.total, by_type: byType, by_author: byAuthor },\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        80
+      ],
+      "id": "892ab1f4-0d39-4e0a-a72b-fed2b8f4d503",
+      "name": "Compute Delta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items. Перед Data Table Upsert.\nconst r = $input.first().json;\nconst { to_email, previous, delta, has_previous, previous_is_test, ...snapshot } = r;\nreturn [{ json: {\n  week_key: r.week_key, repo: r.repo, week_start: r.week_start,\n  week_end: r.week_end, timezone: r.timezone, total: r.total,\n  is_test: r.is_test, snapshot_json: JSON.stringify(snapshot),\n} }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        80
+      ],
+      "id": "8ea995cb-1d53-4794-b5bd-951a7f71a8c3",
+      "name": "Prepare Snapshot"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SE3L4ZwcGrgVK2UA",
+          "mode": "list",
+          "cachedResultName": "weekly_stats",
+          "cachedResultUrl": "/projects/z7S2MY6Q6PQGBMLG/datatables/SE3L4ZwcGrgVK2UA"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "week_key",
+              "keyValue": "={{ $json.week_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "snapshot_json": "={{ $json.snapshot_json }}",
+            "timezone": "={{ $json.timezone }}",
+            "week_end": "={{ $json.week_end}}",
+            "week_start": "={{ $json.week_start }}",
+            "repo": "={{ $json.repo }}",
+            "week_key": "={{ $json.week_key }}",
+            "total": "={{ $json.total }}",
+            "is_test": "={{ $json.is_test }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "week_key",
+              "displayName": "week_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "repo",
+              "displayName": "repo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "week_start",
+              "displayName": "week_start",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "week_end",
+              "displayName": "week_end",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "is_test",
+              "displayName": "is_test",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "snapshot_json",
+              "displayName": "snapshot_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        80
+      ],
+      "id": "69e5c58b-1749-47f5-9670-a96ea3979bed",
+      "name": "Save Week"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items. После Data Table Upsert.\nreturn [{ json: $('Compute Delta').first().json }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        80
+      ],
+      "id": "3eef7dd4-8389-4e5c-9289-8483fa02638b",
+      "name": "Restore Report"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({ period: [$json.week_start, $json.last_day], timezone: $json.timezone, current: { total: $json.total, by_type: $json.by_type }, previous: $json.previous ? { total: $json.previous.total, by_type: $json.previous.by_type } : null, delta: $json.delta, is_test: $json.is_test, previous_is_test: $json.previous_is_test ?? false, is_partial: $json.is_partial }) }}\n",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Ты пишешь аннотацию недельной статистики GitHub Issues на русском языке. Напиши 2–4 коротких предложения. Опиши самые заметные изменения числа обращений и их типов, если есть данные предыдущей недели. Используй только переданные числа и рассчитанные delta. Не пересчитывай данные и не выдумывай причины изменений, качество кода или сроки исправлений. Если предыдущей недели нет, скажи, что сравнение пока недоступно. Если данные тестовые или неделя неполная, явно укажи это. Верни обычный текст без Markdown и HTML."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2432,
+        80
+      ],
+      "id": "c7bf781e-836a-4637-b5b5-412f782bdff1",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code: Run Once for All Items. После Basic LLM Chain без Output Parser.\nconst r = $('Restore Report').first().json;\nconst answer = $input.first().json;\nconst comment = answer.text ?? answer.output;\nif (typeof comment !== 'string' || !comment.trim()) throw new Error('AI annotation is empty');\nreturn [{ json: { ...r, ai_comment: comment.trim() } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        80
+      ],
+      "id": "f845a47b-61fc-4bd0-bc0a-885da2d53ae6",
+      "name": "Attach AI Comment"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-6-luna"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2368,
+        288
+      ],
+      "id": "7e0a3bde-288d-4b61-a899-c13e70e9b2f2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "BkXEHgN3Fa7ghhum",
+          "name": "OpenAI account 49"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Run Report Manually": {
+      "main": [
+        [
+          {
+            "node": "Report Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Schedule": {
+      "main": [
+        [
+          {
+            "node": "Report Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Config": {
+      "main": [
+        [
+          {
+            "node": "Prepare Period",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Period": {
+      "main": [
+        [
+          {
+            "node": "Fetch Bug",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Bug": {
+      "main": [
+        [
+          {
+            "node": "Fetch Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Triage": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Task": {
+      "main": [
+        [
+          {
+            "node": "Fetch Feature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Feature": {
+      "main": [
+        [
+          {
+            "node": "Fetch Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Stats": {
+      "main": [
+        [
+          {
+            "node": "Get Previous Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Previous Week": {
+      "main": [
+        [
+          {
+            "node": "Compute Delta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Delta": {
+      "main": [
+        [
+          {
+            "node": "Prepare Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Save Week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Week": {
+      "main": [
+        [
+          {
+            "node": "Restore Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Report": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Attach AI Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach AI Comment": {
+      "main": [
+        [
+          {
+            "node": "Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e4515594-78d2-46fa-a95e-66d78560a60a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "68dbbb4e8fa686c3fd4e9982ade6836edb66976f207553e7ac22df961581c78c"
+  },
+  "nodeGroups": [],
+  "id": "FE6zHP9D5KIcQn0j",
+  "tags": []
+}
