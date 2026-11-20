@@ -366,7 +366,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// n8n Code: Run Once for All Items. Письмо обычным текстом.\nconst r = $input.first().json;\nconst labels = ['bug', 'task', 'feature', 'needs-triage'];\nconst hasComparison = r.has_previous === true;\nconst formatDelta = value => value > 0 ? `+${value}` : String(value);\nconst metric = (name, current, previous, difference) => hasComparison\n  ? `${name}: ${current} (прошлая неделя: ${previous}, Δ ${formatDelta(difference)})`\n  : `${name}: ${current}`;\n\nconst lines = [\n  'Недельный отчёт RouteFinder',\n  `${r.week_start} — ${r.last_day}, ${r.timezone}`,\n  '',\n  'Классифицированные Issues, созданные за период. Учтены открытые и закрытые обращения.',\n  '',\n  metric('Всего', r.total, r.previous?.total, r.delta?.total),\n  '',\n  'По типам:',\n  ...labels.map(label => metric(\n    label, r.by_type[label], r.previous?.by_type?.[label], r.delta?.by_type?.[label],\n  )),\n];\n\nif (r.has_previous === false) {\n  lines.push('', 'Нет данных предыдущей недели для сравнения.');\n}\n\nlines.push('', 'По авторам:');\nif (r.by_author.length) {\n  for (const author of r.by_author) {\n    lines.push(`${author.author}: всего ${author.total}; ${labels.map(label => `${label}: ${author[label]}`).join(', ')}`);\n  }\n} else {\n  lines.push('За неделю обращений нет.');\n}\n\nif (r.ai_comment) {\n  lines.push('', 'AI-комментарий недели:', String(r.ai_comment).trim());\n}\nlines.push('', 'Issues репозитория: https://github.com/ramilEmazanov/RouteFinder/issues');\n\nreturn [{ json: {\n  ...r,\n  subject: `${r.is_test ? '[ТЕСТ] ' : ''}RouteFinder: Issues за ${r.week_start} — ${r.last_day}`,\n  text: lines.join('\\n'),\n} }];\n"
+        "jsCode": "// n8n Code: Run Once for All Items. Вариант для сдачи: простое HTML-письмо с таблицами.\nconst r = $input.first().json;\nconst labels = ['bug', 'task', 'feature', 'needs-triage'];\nconst esc = value => String(value ?? '').replace(/[&<>\"']/g, c => ({\n  '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;',\n})[c]);\nconst delta = value => value > 0 ? `+${value}` : String(value);\nconst compare = r.has_previous === true;\nconst table = (headers, rows) => `<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\" style=\"border-collapse:collapse;margin:16px 0\"><thead><tr>${headers.map(h => `<th align=\"left\">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;\nconst headers = ['Тип', 'За неделю', ...(compare ? ['Прошлая неделя', 'Δ'] : [])];\nconst rows = labels.map(label => [label, r.by_type[label], ...(compare\n  ? [r.previous.by_type[label], delta(r.delta.by_type[label])] : [])]);\nrows.push(['Итого', r.total, ...(compare ? [r.previous.total, delta(r.delta.total)] : [])]);\nconst authors = r.by_author.map(a => [a.author, a.total, ...labels.map(k => a[k])]);\nconst html = `<!doctype html><html lang=\"ru\"><body style=\"font-family:Arial,sans-serif;color:#202124;padding:20px\">\n<h1>Недельный отчёт RouteFinder</h1>\n<p>${esc(r.week_start)} — ${esc(r.last_day)}, ${esc(r.timezone)}</p>\n<p>Классифицированные Issues, созданные за период. Учтены открытые и закрытые обращения.</p>\n<h2>По типам</h2>${table(headers, rows)}\n${r.has_previous === false ? '<p>Нет данных предыдущей недели для сравнения.</p>' : ''}\n<h2>По авторам</h2>${authors.length ? table(['Автор', 'Всего', ...labels], authors) : '<p>За неделю обращений нет.</p>'}\n${r.ai_comment ? `<h2>AI-комментарий недели</h2><p>${esc(r.ai_comment).replace(/\\n/g, '<br>')}</p>` : ''}\n<p><a href=\"https://github.com/ramilEmazanov/RouteFinder/issues\">Issues репозитория</a></p>\n</body></html>`;\nreturn [{ json: {\n  ...r,\n  subject: `${r.is_test ? '[ТЕСТ] ' : ''}RouteFinder: Issues за ${r.week_start} — ${r.last_day}`,\n  html,\n} }];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -382,8 +382,7 @@
         "fromEmail": "t0moe6172@gmail.com",
         "toEmail": "={{ $json.to_email }}",
         "subject": "={{ $json.subject }}",
-        "emailFormat": "text",
-        "text": "={{ $json.text }}",
+        "html": "={{$json.html}}",
         "options": {}
       },
       "type": "n8n-nodes-base.emailSend",
@@ -865,7 +864,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "e4515594-78d2-46fa-a95e-66d78560a60a",
+  "versionId": "3f178a47-76ee-4967-b1e1-ccfe341972fa",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "68dbbb4e8fa686c3fd4e9982ade6836edb66976f207553e7ac22df961581c78c"
