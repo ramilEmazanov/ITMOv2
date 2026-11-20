@@ -1,0 +1,16 @@
+{
+  "tool": "resolve-library-id",
+  "arguments": {
+    "libraryName": "MCP Python SDK",
+    "query": "Python SDK v1 FastMCP structured output dict and ClientSession stdio call_tool"
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "Available Libraries:\n\n- Title: MCP Python SDK\n- Context7-compatible library ID: /websites/py_sdk_modelcontextprotocol_io\n- Description: MCP Python SDK is the official Python library for implementing the Model Context Protocol, enabling developers to build MCP servers and clients that expose tools, resources, and prompts to LLMs.\n- Code Snippets: 3305\n- Source Reputation: High\n- Benchmark Score: 89.34\n----------\n- Title: Model Context Protocol Python SDK\n- Context7-compatible library ID: /modelcontextprotocol/python-sdk\n- Description: The MCP Python SDK implements the Model Context Protocol, enabling applications to provide standardized context for LLMs, build MCP clients, and create MCP servers that expose resources, prompts, and tools.\n- Code Snippets: 1420\n- Source Reputation: High\n- Benchmark Score: 85.73\n- Versions: v1.12.4\n----------\n- Title: MCP Python SDK\n- Context7-compatible library ID: /websites/py_sdk_modelcontextprotocol_io_v2\n- Description: The Model Context Protocol (MCP) Python SDK allows applications to provide context to LLMs in a standardized way, separating the concern of providing context from the LLM interaction itself.\n- Code Snippets: 1090\n- Source Reputation: High\n- Benchmark Score: 84.95\n----------\n- Title: MCP Python SDK (Deepwiki)\n- Context7-compatible library ID: /websites/deepwiki_modelcontextprotocol_python-sdk\n- Description: The MCP Python SDK is a Python implementation of the Model Context Protocol (MCP), providing both server and client components for building LLM-integrated applications.\n- Code Snippets: 863\n- Source Reputation: High\n- Benchmark Score: 77.8\n----------\n- Title: North MCP Python SDK\n- Context7-compatible library ID: /cohere-ai/north-mcp-python-sdk\n- Description: This Python SDK extends the original MCP specification to enable server authentication with North, providing features like secret-based request protection, OAuth token access, and user identity retrieval.\n- Code Snippets: 396\n- Source Reputation: High\n- Benchmark Score: 48"
+      }
+    ],
+    "isError": false
+  }
+}

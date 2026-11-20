@@ -1,0 +1,299 @@
+{
+  "generated_at": "2026-10-07T19:05:08.861438+00:00",
+  "transport": "stdio",
+  "data": "synthetic rows in temporary SQLite; no live Ignav requests",
+  "initialization": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": {
+      "experimental": {},
+      "prompts": {
+        "listChanged": false
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": false
+      },
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "serverInfo": {
+      "name": "flight-history",
+      "version": "1.30.0"
+    }
+  },
+  "tools": {
+    "tools": [
+      {
+        "name": "compare_prices",
+        "description": "Compare saved flight prices, without live Ignav calls or database writes.\n\nOmit current_search_id to use the latest search. Omit previous_search_id\nto use the preceding nonempty search with identical parameters.\nExplicit IDs must be positive integers; previous must precede current.\nReturns signed difference and percentage (null if previous price is zero),\nor no_previous_price. Empty prices, incompatible parameters, unknown IDs\nand different currencies produce an MCP tool error.\n",
+        "inputSchema": {
+          "properties": {
+            "current_search_id": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Current Search Id"
+            },
+            "previous_search_id": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Previous Search Id"
+            }
+          },
+          "title": "compare_pricesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "compare_pricesDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      }
+    ]
+  },
+  "calls": [
+    {
+      "case": "success",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 2
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"status\": \"compared\",\n  \"direction\": \"cheaper\",\n  \"previous_search_id\": 1,\n  \"current_search_id\": 2,\n  \"search\": {\n    \"departure_date\": \"2099-11-10\",\n    \"destination\": \"LED\",\n    \"direct\": false,\n    \"market\": \"RU\",\n    \"max_price\": null,\n    \"origin\": \"MOW\",\n    \"trip_type\": \"one_way\"\n  },\n  \"previous_search_at\": \"2099-01-01T00:00:00Z\",\n  \"current_search_at\": \"2099-01-02T00:00:00Z\",\n  \"previous_price\": 4000.0,\n  \"current_price\": 3500.0,\n  \"currency\": \"RUB\",\n  \"difference\": -500.0,\n  \"percent_difference\": -12.5\n}"
+          }
+        ],
+        "structuredContent": {
+          "status": "compared",
+          "direction": "cheaper",
+          "previous_search_id": 1,
+          "current_search_id": 2,
+          "search": {
+            "departure_date": "2099-11-10",
+            "destination": "LED",
+            "direct": false,
+            "market": "RU",
+            "max_price": null,
+            "origin": "MOW",
+            "trip_type": "one_way"
+          },
+          "previous_search_at": "2099-01-01T00:00:00Z",
+          "current_search_at": "2099-01-02T00:00:00Z",
+          "previous_price": 4000.0,
+          "current_price": 3500.0,
+          "currency": "RUB",
+          "difference": -500.0,
+          "percent_difference": -12.5
+        },
+        "isError": false
+      }
+    },
+    {
+      "case": "first_search",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 1
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"status\": \"no_previous_price\",\n  \"current_search_id\": 1,\n  \"message\": \"Предыдущей сопоставимой цены пока нет.\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "status": "no_previous_price",
+          "current_search_id": 1,
+          "message": "Предыдущей сопоставимой цены пока нет."
+        },
+        "isError": false
+      }
+    },
+    {
+      "case": "latest_search",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {}
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"status\": \"no_previous_price\",\n  \"current_search_id\": 5,\n  \"message\": \"Предыдущей сопоставимой цены пока нет.\"\n}"
+          }
+        ],
+        "structuredContent": {
+          "status": "no_previous_price",
+          "current_search_id": 5,
+          "message": "Предыдущей сопоставимой цены пока нет."
+        },
+        "isError": false
+      }
+    },
+    {
+      "case": "invalid_input",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": -1
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Error executing tool compare_prices: 1 validation error for compare_pricesArguments\ncurrent_search_id\n  Input should be greater than 0 [type=greater_than, input_value=-1, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/greater_than"
+          }
+        ],
+        "isError": true
+      }
+    },
+    {
+      "case": "empty_price",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 3
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Error executing tool compare_prices: empty_price: Текущий поиск не содержит цены для сравнения."
+          }
+        ],
+        "isError": true
+      }
+    },
+    {
+      "case": "currency_mismatch",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 4
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Error executing tool compare_prices: currency_mismatch: Нельзя сравнивать цены в разных валютах."
+          }
+        ],
+        "isError": true
+      }
+    },
+    {
+      "case": "incompatible_searches",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 5,
+            "previous_search_id": 2
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Error executing tool compare_prices: incompatible_searches: Маршрут, даты, рынок или фильтры отличаются."
+          }
+        ],
+        "isError": true
+      }
+    },
+    {
+      "case": "invalid_order",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 1,
+            "previous_search_id": 2
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Error executing tool compare_prices: invalid_order: Предыдущая запись должна быть раньше текущей."
+          }
+        ],
+        "isError": true
+      }
+    },
+    {
+      "case": "unknown_id",
+      "request": {
+        "method": "tools/call",
+        "params": {
+          "name": "compare_prices",
+          "arguments": {
+            "current_search_id": 999
+          }
+        }
+      },
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Error executing tool compare_prices: search_not_found: Текущий поиск не найден."
+          }
+        ],
+        "isError": true
+      }
+    }
+  ],
+  "database_unchanged": true
+}

@@ -173,3 +173,8 @@ student_solutions/
 !.roo/
 !.specify/
 !.vscode/
+
+# Локальная история поиска билетов
+practices/practice_04/backend/price_history.sqlite3
+practices/practice_04/backend/price_history.sqlite3-shm
+practices/practice_04/backend/price_history.sqlite3-wal
