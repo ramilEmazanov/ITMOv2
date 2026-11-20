@@ -1,0 +1,42 @@
+name: AI validate
+run-name: ai-validate-${{ inputs.run_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      head_sha:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          persist-credentials: false
+      - name: Preserve trusted test commands
+        run: |
+          cp scripts/ai/build.sh "$RUNNER_TEMP/trusted-build.sh"
+          cp scripts/ai/test.sh "$RUNNER_TEMP/trusted-test.sh"
+      - name: Validate candidate SHA
+        env:
+          HEAD_SHA: ${{ inputs.head_sha }}
+        run: '[[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.head_sha }}
+          persist-credentials: false
+      - name: Verify checkout
+        env:
+          HEAD_SHA: ${{ inputs.head_sha }}
+        run: test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+      - name: Build and test candidate
+        run: |
+          bash "$RUNNER_TEMP/trusted-build.sh"
+          bash "$RUNNER_TEMP/trusted-test.sh"

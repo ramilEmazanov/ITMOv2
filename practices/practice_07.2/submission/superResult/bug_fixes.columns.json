@@ -1,0 +1,70 @@
+[
+  {
+    "name": "issue_key",
+    "type": "string"
+  },
+  {
+    "name": "issue_number",
+    "type": "number"
+  },
+  {
+    "name": "repo",
+    "type": "string"
+  },
+  {
+    "name": "run_id",
+    "type": "string"
+  },
+  {
+    "name": "n8n_execution",
+    "type": "string"
+  },
+  {
+    "name": "status",
+    "type": "string"
+  },
+  {
+    "name": "branch",
+    "type": "string"
+  },
+  {
+    "name": "base_sha",
+    "type": "string"
+  },
+  {
+    "name": "head_sha",
+    "type": "string"
+  },
+  {
+    "name": "fix_run_id",
+    "type": "string"
+  },
+  {
+    "name": "validate_run_id",
+    "type": "string"
+  },
+  {
+    "name": "pr_number",
+    "type": "number"
+  },
+  {
+    "name": "pr_url",
+    "type": "string"
+  },
+  {
+    "name": "reviewed_sha",
+    "type": "string"
+  },
+  {
+    "name": "review_json",
+    "type": "string"
+  },
+  {
+    "name": "error",
+    "type": "string"
+  },
+  {
+    "name": "updated_at",
+    "type": "string"
+  }
+]

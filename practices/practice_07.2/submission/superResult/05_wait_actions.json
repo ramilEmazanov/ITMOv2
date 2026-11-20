@@ -1,0 +1,264 @@
+{
+  "name": "05_wait_actions",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "repo",
+              "type": "string"
+            },
+            {
+              "name": "actions_run_id",
+              "type": "string"
+            },
+            {
+              "name": "expected_title",
+              "type": "string"
+            },
+            {
+              "name": "expected_path",
+              "type": "string"
+            },
+            {
+              "name": "expected_sha",
+              "type": "string"
+            },
+            {
+              "name": "timeout_seconds",
+              "type": "number"
+            },
+            {
+              "name": "poll_seconds",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "00aba344-b80b-4d4d-9f9f-0f1d6a8ab9be",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $input.first().json;\nif (!/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(i.repo ?? '')\n    || !/^\\d+$/.test(String(i.actions_run_id ?? ''))\n    || typeof i.expected_title !== 'string'\n    || !i.expected_path?.startsWith('.github/workflows/')) throw new Error('Invalid wait inputs');\nconst timeout = Number(i.timeout_seconds ?? 1500);\nconst poll = Number(i.poll_seconds ?? 15);\nif (!Number.isFinite(timeout) || timeout < 15 || timeout > 3600\n    || !Number.isFinite(poll) || poll < 5 || poll > 60) throw new Error('Invalid polling settings');\nreturn [{json: {...i, actions_run_id: String(i.actions_run_id), timeout_seconds: timeout,\n  poll_seconds: poll, started_ms: Date.now()}}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "49f3997c-3cac-40c0-a3b4-effda8eda35e",
+      "name": "Wait Input"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://api.github.com/repos/' + $('Wait Input').first().json.repo + '/actions/runs/' + $('Wait Input').first().json.actions_run_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2026-03-10"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        480,
+        0
+      ],
+      "id": "bd147914-0cdb-426c-9c71-8d9866e36a23",
+      "name": "Poll Run",
+      "credentials": {
+        "githubApi": {
+          "id": "KKi0v4T6OdNEEJWf",
+          "name": "GitHub account 59"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Wait Input').first().json;\nconst run = $input.first().json;\nif (Date.now() - input.started_ms > input.timeout_seconds * 1000) throw new Error('Actions polling timeout');\nif (String(run.id) !== input.actions_run_id || run.repository?.full_name !== input.repo\n    || run.event !== 'workflow_dispatch' || run.display_title !== input.expected_title\n    || String(run.path ?? '').split('@')[0] !== input.expected_path) throw new Error('Unexpected Actions run');\nreturn [{json: {...input, completed: run.status === 'completed',\n  conclusion: run.conclusion ?? null, actions_status: run.status, actions_url: run.html_url}}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "id": "66c65402-b9a7-4739-a945-2960a3ccc44b",
+      "name": "Inspect Run"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "762463ed-5905-4137-8a9b-3e95f31da893",
+              "leftValue": "={{ $json.completed === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        960,
+        0
+      ],
+      "id": "12d4dbe3-e5c9-46aa-9e30-937eb6c60c39",
+      "name": "Run Completed?"
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": "={{ $('Wait Input').first().json.poll_seconds }}",
+        "unit": "seconds"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        240
+      ],
+      "id": "ddf7fb40-4afb-47fb-a118-6c6545153df1",
+      "name": "Wait Before Poll",
+      "webhookId": "e778fdfe-56b8-4803-a56c-49be732b8a99"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: $input.first().json}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "dbed2640-c547-4316-b885-d51fc0ce3efb",
+      "name": "Return Actions Result"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Wait Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Input": {
+      "main": [
+        [
+          {
+            "node": "Poll Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Poll Run": {
+      "main": [
+        [
+          {
+            "node": "Inspect Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inspect Run": {
+      "main": [
+        [
+          {
+            "node": "Run Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Completed?": {
+      "main": [
+        [
+          {
+            "node": "Return Actions Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Before Poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Poll": {
+      "main": [
+        [
+          {
+            "node": "Poll Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Moscow",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": []
+}

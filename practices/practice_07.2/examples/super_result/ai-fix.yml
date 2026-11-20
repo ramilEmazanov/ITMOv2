@@ -1,0 +1,64 @@
+name: AI fix
+run-name: ai-fix-${{ inputs.run_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+      base_sha:
+        required: true
+        type: string
+permissions:
+  contents: write
+  issues: read
+concurrency:
+  group: routefinder-ai-fix
+  cancel-in-progress: false
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install tested OpenCode version
+        env:
+          OPENCODE_VERSION: ${{ vars.OPENCODE_VERSION }}
+        run: |
+          test -n "$OPENCODE_VERSION"
+          npm install --global "opencode-ai@$OPENCODE_VERSION"
+          opencode --version
+      - name: Fetch bug report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: |
+          [[ "$ISSUE_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER" > "$RUNNER_TEMP/bug-report.json"
+      - name: Generate fix and run tests
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          RUN_ID: ${{ inputs.run_id }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        run: bash scripts/ai/run-fix.sh
+      - name: Push fix branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          [[ "$ISSUE_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RUN_ID" =~ ^[A-Za-z0-9_-]+$ ]]
+          gh auth setup-git
+          git -c core.hooksPath=/dev/null push origin "HEAD:refs/heads/ai/fix-$ISSUE_NUMBER-$RUN_ID"

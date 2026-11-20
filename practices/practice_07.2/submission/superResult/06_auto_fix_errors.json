@@ -1,0 +1,369 @@
+{
+  "name": "06_auto_fix_errors",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ac47a1b0-7f51-42ce-937b-c86b70d7318c",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7782d331-abdd-4038-8f98-1b3136b5755f",
+              "name": "bug_fixes_table_id",
+              "value": "REPLACE_WITH_BUG_FIXES_TABLE_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        240,
+        0
+      ],
+      "id": "cb9a99a2-4713-48bf-8849-13b030d3b99c",
+      "name": "Error Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nif (!input.execution?.id) throw new Error('No parent execution ID in error payload');\nreturn [{json:{n8n_execution:String(input.execution.id),\n error: String(input.execution.error?.message ?? 'Unknown workflow failure').slice(0,4000),\n error_node:input.execution.lastNodeExecuted ?? '', updated_at:new Date().toISOString()}}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "35b86eda-4cd9-41b7-a20a-72f2c20171fe",
+      "name": "Error Context"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "={{ $('Error Config').first().json.bug_fixes_table_id }}",
+          "mode": "id"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "n8n_execution",
+              "keyValue": "={{ $json.n8n_execution }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "id": "1b6176d7-4c7d-40bf-8f5c-cf2970dcdbfa",
+      "name": "Find Failed Fix",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $('Error Context').first().json;\nconst rows = $input.all().map(i=>i.json).filter(r=>r.n8n_execution===error.n8n_execution);\nif (rows.length !== 1 || ['merged','rejected','blocked','ready_for_merge'].includes(rows[0].status)) return [];\nreturn [{json:{issue_key:rows[0].issue_key,status:'failed',error:error.error_node + ': ' + error.error,updated_at:error.updated_at}}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        0
+      ],
+      "id": "39e97960-30b6-4dfc-bbb6-3b54272e341b",
+      "name": "Failure Update"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "={{ $('Error Config').first().json.bug_fixes_table_id }}",
+          "mode": "id"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "issue_key",
+              "keyValue": "={{ $json.issue_key }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.status }}",
+            "error": "={{ $json.error }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "issue_key",
+              "displayName": "issue_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "issue_number",
+              "displayName": "issue_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "repo",
+              "displayName": "repo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "run_id",
+              "displayName": "run_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "n8n_execution",
+              "displayName": "n8n_execution",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "branch",
+              "displayName": "branch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "base_sha",
+              "displayName": "base_sha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "head_sha",
+              "displayName": "head_sha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "fix_run_id",
+              "displayName": "fix_run_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "validate_run_id",
+              "displayName": "validate_run_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "pr_number",
+              "displayName": "pr_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "pr_url",
+              "displayName": "pr_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "reviewed_sha",
+              "displayName": "reviewed_sha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "review_json",
+              "displayName": "review_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "edd5b9f8-5d63-4207-bf96-e997e9a0aafa",
+      "name": "Record Unexpected Failure"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Error Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Config": {
+      "main": [
+        [
+          {
+            "node": "Error Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Context": {
+      "main": [
+        [
+          {
+            "node": "Find Failed Fix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Failed Fix": {
+      "main": [
+        [
+          {
+            "node": "Failure Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failure Update": {
+      "main": [
+        [
+          {
+            "node": "Record Unexpected Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Moscow",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": []
+}
